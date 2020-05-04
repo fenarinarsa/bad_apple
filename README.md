@@ -40,7 +40,7 @@ https://fenarinarsa.com/badapple/fenarinarsa_badapple_source.zip
 ...and Visual Studio (any edition).
 
 
-# Building instructions
+# Build instructions
 
 You need the following tools:  
 - vasm (cross-platform) or Devpac (ST)  
