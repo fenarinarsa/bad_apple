@@ -4,10 +4,10 @@ Bad Apple!! for Atari STE
 
 The infamous video for your STE.
 
-**music:** Masayoshi Minoshima (Alstroemeria Records) 
-**vocals** nomico 
-**original video** Anira 
-**code:** Fenarinarsa 
+**music:** Masayoshi Minoshima (Alstroemeria Records)  
+**vocals** nomico  
+**original video** Anira  
+**code:** Fenarinarsa  
 
 **Web**  
 https://fenarinarsa.com  
