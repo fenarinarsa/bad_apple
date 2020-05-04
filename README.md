@@ -24,8 +24,8 @@ https://shelter.moe/@fenarinarsa
 
 # Requirements
 
-Atari STE or Mega STE with at least 1MB RAM
-Color or monochrome monitor
+Atari STE or Mega STE with at least 1MB RAM  
+Color or monochrome monitor  
 ACSI or IDE Hard Drive
 
 
