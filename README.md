@@ -46,7 +46,7 @@ You need the following tools:
 - vasm (cross-platform) or Devpac (ST)  
 - make (the GNU/Linux tool)  
 
-# vasm
+## vasm
 
 For Windows I offer you my vasm 1.8 binary here (else you need to compile it from source code):  
 https://fenarinarsa.com/demos/vasm_mot_1.8.zip  
@@ -55,7 +55,7 @@ http://sun.hasenbraten.de/vasm/
 
 And add vasm's path to the environment PATH variable. 
 
-# make
+## make
 
 The fastest way to install make on Windows is to install chocolatey:  
 https://chocolatey.org/  
