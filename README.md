@@ -50,14 +50,14 @@ https://fenarinarsa.com/demos/vasm_mot_1.8.zip
 Official site with source code:  
 http://sun.hasenbraten.de/vasm/
 
+And add vasm's path to the environment PATH variable. 
+
 # make
 
 The fastest way to install make on Windows is to install chocolatey:  
 https://chocolatey.org/  
 Then open a shell as administrator and type:  
 `choco install make`
-
-And add vasm's path to the environment PATH variable. 
 
 ## Build
 
