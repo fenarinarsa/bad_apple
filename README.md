@@ -74,11 +74,17 @@ https://fenarinarsa.com/badapple/fenarinarsa_badapple_final.zip
 
 ## Options
 
-You can switch to monochrome by setting ```monochrome EQU 1``` at the start of the source code.  
+### Alternate versions
 
-The DMA sound frequency can be easily changed (look for ```move.b #%11,$FFFF8921.w```).  
+Don't forget to use the correct data files (they're all provided in the release archive):
+- You can switch to monochrome by setting ```monochrome EQU 1``` at the start of the source code.  
+- The DMA sound frequency can be easily changed (look for ```move.b #%11,$FFFF8921.w```). 
 
-It's worth noting that you can disable the blitter use in BASTGenerator by setting all three ```opt_blitter``` options to ```false``` in ```bw_MakeRun()```. The generated data file will only contain software code for delta-packing without any need to change the player. By using ony 8 greyshades and adding a software YM2149 sample replay, an STF version should be possible.  
+### STF/TT030/Falcon ports
 
-A Falcon version could also be done by removing all audio data and using an MP2 player.
+It's worth noting that you can disable the blitter use in BASTGenerator by setting all three ```opt_blitter``` options to ```false``` in ```bw_MakeRun()```. The generated data file will only contain software code for delta-packing without any need to change the player. By using only 8 greyshades and adding a software YM2149 sample replay, an STF version should be possible.  
+
+The Blitter emulation provided in the source code should work on 68030 (untested). However the "stack trick" used between interrupts is not compatible with the 68030, to my knowledge.
+
+A Falcon version could also be done by removing all audio data and using an MP2 player. However the 4/3 resolutions are different in VGA and RGB, and the Videl chip needs to be setup accordingly to work in 60Hz.
 
