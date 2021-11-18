@@ -5,3 +5,8 @@ lbl_*.txt
 cw.code-workspace
 build.bat
 *.tos
+bin
+*.lref
+obj
+Debug
+

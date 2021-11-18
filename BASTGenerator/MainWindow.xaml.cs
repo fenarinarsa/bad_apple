@@ -113,37 +113,37 @@ namespace BASTGenerator
 
         uint target_nb_bitplanes = 4; // 1 to 4
         // uncomment for color
-        double fps = ntsc_fps/2.0; // to fit STE ntsc frequency and avoid 4 'unchanged frames'
-        double target_fps = ntsc_fps/2.0; // should be >= fps
+        double fps = 24; // to fit STE ntsc frequency and avoid 4 'unchanged frames'
+        double target_fps = pal_fps/2; // should be >= fps
         // uncomment for monochrome
         //double fps = 30;
         //double target_fps = monochrome_fps; // should be >= fps
         bool audio_mux_only = false; // set to true if you only changed audio
         int first_pic = 0;
-        int last_pic = 6535;
+        int last_pic = 2719;
         // set to true if you generate a monochrome highres animation. target bitplanes will be forced to 1
         bool highres = false;
 
         // Original image sequence location
         // don't forget to change it between lowres and highres
-        String original_image = @"D:\badapple\resized\lowres\badapple_{0:00000}.png";
+        String original_image = @"D:\ankha\320x200c\Ankha By Ankha LOOP_1{0:0000}.bmp";
 
         // audio
         int original_samplesize = 2;   // original should always be 16 bits PCM
         int ste_channels = 2;          // 1=mono, 2=stereo (also applies to the input wav file)
-        int soundfrq = 50066;       // audio frequency (+/-1Hz depending on the STE main clock). divide by 2 for 25kHz, 4 for 12kHz, etc.
-        String soundfile = @"D:\badapple\badapple_st50_16.wav"; // Original sound file (PCM 16 bit little endian without any tag)
+        int soundfrq = 25033;       // audio frequency (+/-1Hz depending on the STE main clock). divide by 2 for 25kHz, 4 for 12kHz, etc.
+        String soundfile = @"D:\ankha\ankha_25k_16b.wav"; // Original sound file (PCM 16 bit little endian without any tag)
 
         // Temp files created in step 1
-        String degas_source = @"D:\badapple\st{0}b\ba_";
+        String degas_source = @"D:\ankha\ankha{0}bc\ba_";
 
         // Temp files created in step 2
-        String runtimefile = @"D:\badapple\st_run\ba_{0:00000}.run";
-        String runtimesoundfile = @"D:\badapple\st_run\ba_{0:00000}.pcm";
+        String runtimefile = @"D:\ankha\run\ba_{0:00000}.run";
+        String runtimesoundfile = @"D:\ankha\run\ba_{0:00000}.pcm";
 
         // Final files 
-        String finalvid = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ba\ba.dat";
-        String finalindex = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ba\ba.idx";
+        String finalvid = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ba.dat";
+        String finalindex = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ba.idx";
 
         // You can stop here unless you cant to tweak settings in bw_MakeRun.
 
@@ -168,20 +168,22 @@ namespace BASTGenerator
 
         }
 
+        // Color version
         private void bw_MakeDegas(object sender, DoWorkEventArgs e)
         {
             // palette LUTs for 1, 2, 3, 4 bitplane modes
-            int[][] colors = new int[][] { new int[] { 0, 1 },
-                new int[] { 0, 2, 3, 1 },
-                new int[] { 0, 2, 3, 7, 6, 4, 5, 1 },
-                new int[] { 0, 2, 3, 7, 6, 4, 5, 13, 15, 14, 12, 8, 10, 11, 9, 1 } };
+            //int[][] colors = new int[][] { new int[] { 0, 1 },
+            //    new int[] { 0, 2, 3, 1 },
+            //    new int[] { 0, 2, 3, 7, 6, 4, 5, 1 },
+            //    new int[] { 0, 2, 3, 7, 6, 4, 5, 13, 15, 14, 12, 8, 10, 11, 9, 1 } };
 
             for (int pic = first_pic; pic <= last_pic; pic++) {
                 String picfile = String.Format(original_image, pic);
                 Console.WriteLine(pic);
                 Bitmap myBitmap = new Bitmap(picfile);
                 byte[] header = new byte[34];
-
+                byte[] originalpic = File.ReadAllBytes(picfile); // 320x200 256c BMP only!!
+            
                 int palette = (int)Math.Pow(2, target_nb_bitplanes);
                 for (int i = 3; i < 34; i++) header[i] = 0x0f;
                 // the palette is actually incorrect but we don't care
@@ -201,8 +203,6 @@ namespace BASTGenerator
                 int h = (int)myBitmap.PhysicalDimension.Height;
                 int w = (int)myBitmap.PhysicalDimension.Width;
                 uint[] pixelData = new uint[w * h];
-                //int widthInByte = 4 * w;
-                
 
                 using (var fs = new FileStream(degas_source + pic.ToString("D5") + (highres?".pi3":".pi1"), FileMode.Create, FileAccess.Write)) {
                     fs.Write(header, 0, header.Length);
@@ -213,11 +213,16 @@ namespace BASTGenerator
                     planes.Initialize();
                     for (int y = 0; y < myBitmap.PhysicalDimension.Height; y++) {
                         for (int x = 0; x < myBitmap.PhysicalDimension.Width; x++) {
-                            int brightness = ((myBitmap.GetPixel(x, y).G >> 4) * palette) / 16;
 
-                            pixelData[x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)((0x111111 * 16 * brightness) / palette)  + 0xff000000;
+                            //int brightness = ((myBitmap.GetPixel(x, y).G >> 4) * palette) / 16;
 
-                            brightness = colors[target_nb_bitplanes-1][brightness];
+                            //pixelData[x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)((0x111111 * 16 * brightness) / palette)  + 0xff000000;
+
+                            int brightness = (int)originalpic[122 + x + (y * (int)myBitmap.PhysicalDimension.Width)];
+
+                            pixelData[x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)brightness; 
+
+                            //brightness = colors[target_nb_bitplanes-1][brightness];
                         
                             int p0 = brightness & 1;                        
                             int p1 = (brightness >> 1) & 1;

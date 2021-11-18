@@ -1,6 +1,6 @@
 
-* BAD APPLE!! Atari STE version (color/monochrome)
-* Copyright (C) 2017 fenarinarsa (Cyril Lambin)
+* ANKHA Atari STE version (color)
+* Copyright (C) 2017-2021 fenarinarsa (Cyril Lambin)
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
 
 
 * Credits
-* Original music composed by ZUN (Team Shanghai Alice)
-* Bad Apple!! remix composed by Masayoshi Minoshima (Alstroemeria Records)
-* Vocals by nomico
-* Original PV/animation video by Anira
+* Original video: ZONE (ZONE-ARCHIVE.COM), used with authorization
+* Music: Camel by Camel by Sandy Marton
 * Atari STE version by fenarinarsa
+*
+* Based on the BAD APPLE!! player released in 2017, modified to work under steroids.
 *
 * Compiled using vasm, don't know about devpac and its old friends.
 *
@@ -63,11 +63,12 @@
 
 	;opt d+
 
-emu	EQU	0	; 1=emulate HDD access timings by adding NOPs
+emu	EQU	1	; 1=emulate HDD access timings by adding NOPs
 ram_limit	EQU	0	; 0=no limit, other=malloc size
 blitter	EQU	1	; 1=use blitter 0=emulate blitter (not complete, for debug purpose only)
-minimum_load EQU	512*200	; minimum size of a disk read (to optimize FREADs)
+minimum_load EQU	512*400	; minimum size of a disk read (to optimize FREADs)
 monochrome	EQU	0	; monochrome mode
+loop_play	EQU	0
 
 	IFNE	monochrome
 line_length EQU	80
@@ -79,8 +80,8 @@ nb_frames	EQU	15571	; number of frames in file
 line_length EQU 	160
 horz_shift	 EQU	1
 intro_shift EQU	0
-vbl_per_frame EQU	2	; 30fps
-nb_frames	EQU	6535	; number of frames in file
+vbl_per_frame EQU	2	; 25fps
+nb_frames	EQU	2837	; number of frames in file
 	ENDC
 
 	MACRO	DMASNDST
@@ -269,7 +270,7 @@ hwinits
 	IFEQ	monochrome
 	move	#$2300,sr
 	stop	#$2300	; wait for vbl
-	bclr.b	#1,$ffff820a.w	; 60Hz
+	bset.b	#1,$ffff820a.w	; 50Hz
 	; sv2k17 60hz beam switch wait
 	;pea	s_waitfor60	; print wait message
 	;move.w	#9,-(sp)
@@ -283,8 +284,21 @@ hwinits
 	move.w	#$2700,sr
 	ENDC
 
-	movem.l	palette,d0-d7
-	movem.l	d0-d7,$ffff8240.w
+	; STE pal
+;	movem.l	palette,d0-d7
+;	movem.l	d0-d7,$ffff8240.w
+	lea	palette,a0
+	lea	$ffff8240,a1
+	move.w	#15,d7
+.stepal	move.w	(a0)+,d0
+	move.w	d0,d1
+	and.w	#$111,d0
+	lsl.w	#3,d0
+	and.w	#$eee,d1
+	lsr.w	#1,d1
+	or.w	d1,d0
+	move.w	d0,(a1)+
+	dbra	d7,.stepal
 
 	move.l	#vbl,$70.w
 	move.l	#hbl,$68.w
@@ -304,7 +318,7 @@ hwinits
 	move.b	screen_display_ptr+2,$ffff8203.w
 	move.b	screen_display_ptr+3,$ffff820d.w
 
-	move.b     #%11,$FFFF8921.w	; 50kHz stereo
+	move.b     #%10,$FFFF8921.w	; 25kHz stereo
 	;move.b     #%10000001,$FFFF8921.w	; 12kHz mono
 	lea	buf_nothing,a0
 	DMASNDST	a0
@@ -321,7 +335,7 @@ hwinits
 	addq	#2,d0
 	move.w	d0,next_refresh
 
-	; "BAD APPLE!!"
+	; Title and credits
 	lea	s_title,a0
 	move.l	screen_display_ptr,a1
 	add.l	#(line_length*90)+(56/horz_shift)+1+intro_shift,a1
@@ -354,9 +368,24 @@ next_load
 	tst.w	(a0)		; end of index
 	bne.s	find_load_size
 
+	IFNE loop_play
 	; we're done loading, force play
 	move.l	#wait_for_play_end,-(sp)
-	bra	enableplay	
+	bra	enableplay
+	ELSE
+	; end of video, looping
+	; seek to start of file
+	clr.w	-(sp)
+	move.w	file_handle,-(sp)
+	move.l	#0,-(sp)
+	move.w	#66,-(sp)		; fseek
+	trap	#1
+	add.l	#10,sp
+	; loop video
+	move.l	#play_index,idx_loaded
+	move.l	#vid_index,a0
+	move.l	a0,idx_load
+	ENDC	
 
 find_load_size
 	moveq	#0,d5
@@ -413,7 +442,7 @@ check_room
 enableplay	move.w	vbl_count,next_refresh
 	clr.w	b_buffering_lock	; enable play if previously disabled
 	move.b	#%11,$ffff8901.w	; restart sound
-	rts			; check_room or wait_for_play_end
+	rts			; go to check_room or wait_for_play_end
 
 first_refresh
 	move.w	#-2,b_first_refresh	; not so bool after all
@@ -491,6 +520,7 @@ loading	move.w	#-1,b_loading
 
 	bra	next_load
 
+	IFEQ	loop_play
 wait_for_play_end
 	move.l	idx_loaded,a0
 	move.l	#-1,(a0)
@@ -498,7 +528,7 @@ wait_for_play_end
 	move.l	idx_play,a0
 	tst.l	(a0)
 	bge.s	.wait
-
+	ENDC
 
 *** END
 
@@ -885,7 +915,19 @@ render	move.l	idx_play,a1	; current frame
 
 	dbra.s	d0,.nextblit
 
-.noblitter	add.l	#4,idx_play
+.noblitter
+	IFNE	loop_play	
+	; clear the idx playlist in case the video loops and inc idx_play+4
+	move.l	idx_play,a0
+	clr.l	(a0)+
+	move.l	a0,d0
+	cmp.l	#play_index+(nb_frames*2),d0
+	bne.s	.noloop
+	move.l	#play_index,a0
+.noloop	move.l	a0,idx_play
+	ELSE
+	add.l	#4,idx_play
+	ENDC
 	bra.s	endrender
 
 enter_buffering
@@ -979,7 +1021,8 @@ loading_bar
 	bsr.s	textprint
 	rts
 
-pgbar_text	dc.b	'################ SV2K17 ################',0
+pgbar_text	
+	dc.b	'########### ZONE-ARCHIVE.COM ###########',0
 	even
 
 *** STRING FUNCTIONS
@@ -1088,7 +1131,8 @@ debug_info	dc.w	0
 	; using Gray code to have only 1 bit change between black and white and any consecutive shade
 	;	0    1     2     3    4   5    6    7    8    9    10   11   12   13   14   15
 	; 4 & 1 bitplanes
-palette	dc.w	$000,$fff,$888,$111,$aaa,$333,$222,$999,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
+;palette	dc.w	$000,$fff,$888,$111,$aaa,$333,$222,$999,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
+palette	dc.w	$ea1,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
 	; 2 bitplanes
 ; palette	dc.w	$000,$fff,$aaa,$555,$aaa,$333,$222,$999,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
 	; 3 bitplanes
@@ -1130,17 +1174,19 @@ s_debug_play
 s_hex	dc.b	"         ",0
 s_nothing	dc.b	"     ",0
 s_title	dc.b	"BAD APPLE!!",0
+	dc.b	"   ANKHA   ",0
 
 s_credits_video
 	dc.b	"CODE: FENARINARSA",13
-	dc.b	"ORIGINAL VIDEO BY ANIRA",13
-	dc.b	"MUSIC: BAD APPLE!! BY M. MINOSHIMA",13
-	dc.b	"VOCALS: NOMICO",0
+	dc.b	"ORIGINAL VIDEO BY ZONE",0
+	;dc.b	"USED WITH AUTHORIZATION",13
+	;dc.b	"",0
 s_credits_video2
-	dc.b	"      FENARINARSA",13
-	dc.b	"                  ANIRA",13
-	dc.b	"                      M. MINOSHIMA",13
-	dc.b	"        NOMICO",0
+	dc.b	" ",0
+;	dc.b	"      FENARINARSA",13
+;	dc.b	"                  ANIRA",13
+;	dc.b	"                      M. MINOSHIMA",13
+;	dc.b	"        NOMICO",0
 	
 
 
