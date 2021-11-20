@@ -63,7 +63,7 @@
 
 	;opt d+
 
-emu	EQU	1	; 1=emulate HDD access timings by adding NOPs
+emu	EQU	0	; 1=emulate HDD access timings by adding NOPs
 ram_limit	EQU	0	; 0=no limit, other=malloc size
 blitter	EQU	1	; 1=use blitter 0=emulate blitter (not complete, for debug purpose only)
 minimum_load EQU	512*400	; minimum size of a disk read (to optimize FREADs)
@@ -285,20 +285,12 @@ hwinits
 	ENDC
 
 	; STE pal
-;	movem.l	palette,d0-d7
-;	movem.l	d0-d7,$ffff8240.w
-	lea	palette,a0
-	lea	$ffff8240,a1
-	move.w	#15,d7
-.stepal	move.w	(a0)+,d0
-	move.w	d0,d1
-	and.w	#$111,d0
-	lsl.w	#3,d0
-	and.w	#$eee,d1
-	lsr.w	#1,d1
-	or.w	d1,d0
-	move.w	d0,(a1)+
-	dbra	d7,.stepal
+	lea	palette0,a0
+	jsr	convert_palette_ste
+	jsr	convert_palette_ste
+	lea	palette0,a0
+	movem.l	palette0,d0-d7
+	movem.l	d0-d7,$ffff8240.w
 
 	move.l	#vbl,$70.w
 	move.l	#hbl,$68.w
@@ -606,7 +598,6 @@ vbl	addq.w	#1,vbl_count
 	move.b	#199,$fffffa21.w
 	move.b	#8,$fffffa1b.w
 
-
 vbl_debug	move.w	$ffff8240.w,-(sp)
 	color_debug $555
 
@@ -619,6 +610,18 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	bsr	loading_bar
 
 .nointro
+	; check for palette change (WIP)
+	movem.l	palette0,d0-d7
+	cmp.w	#328,rendered_frame
+	bmi.s	.nochange
+	cmp.w	#441,rendered_frame
+	bmi.s	.change
+	bra.s	.nochange
+	;cmp.w	#2302,rendered_frame
+	;bpl.s	.nochange
+.change	movem.l	palette1,d0-d7
+.nochange	movem.l	d0-d7,$ffff8240.w
+
 	tst.w	debug_info
 	bne.s	.print_debug
 
@@ -667,7 +670,7 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	moveq	#7,d6
 	bsr	textprint
 
-		; last rendered frame
+	; last rendered frame
 	lea	s_hex,a6
 	move.l	a6,a0
 	move.w	rendered_frame,d0
@@ -1096,11 +1099,22 @@ itoahex	lea	hexstr,a2
 	dbra.s	d3,.loop
 	rts
 
+
 hexstr	dc.b	'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
 	even
 
-
-
+convert_palette_ste
+	move.w	#15,d7
+.stepal	move.w	(a0),d0
+	move.w	d0,d1
+	and.w	#$111,d0
+	lsl.w	#3,d0
+	and.w	#$eee,d1
+	lsr.w	#1,d1
+	or.w	d1,d0
+	move.w	d0,(a0)+
+	dbra	d7,.stepal
+	rts
 
 	section	data
 
@@ -1131,12 +1145,8 @@ debug_info	dc.w	0
 	; using Gray code to have only 1 bit change between black and white and any consecutive shade
 	;	0    1     2     3    4   5    6    7    8    9    10   11   12   13   14   15
 	; 4 & 1 bitplanes
-;palette	dc.w	$000,$fff,$888,$111,$aaa,$333,$222,$999,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
-palette	dc.w	$ea1,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
-	; 2 bitplanes
-; palette	dc.w	$000,$fff,$aaa,$555,$aaa,$333,$222,$999,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
-	; 3 bitplanes
-; palette	dc.w	$000,$777,$111,$222,$555,$666,$444,$333,$ddd,$777,$666,$eee,$555,$bbb,$ccc,$444
+palette0	dc.w	$ea1,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
+palette1	dc.w	$ed0,$ec0,$c90,$da0,$960,$640,$b80,$eee,$43c,$55f,$327,$ba8,$d83,$ea5,$c44,$d54
 
 idx_play	dc.l	play_index		; ptr to next frame to play
 idx_load	dc.l	vid_index		; ptr to frame size list
@@ -1164,17 +1174,16 @@ swap_buffers
 
 
 s_vid_filename
-	dc.b	"BA.DAT",0
+	dc.b	"ANKHA.DAT",0
 s_idx_filename
-	dc.b	"BA.IDX",0
+	dc.b	"ANKHA.IDX",0
 s_debug_load
 	dc.b	"LOAD ",0
 s_debug_play
 	dc.b	"PLAY ",0
 s_hex	dc.b	"         ",0
 s_nothing	dc.b	"     ",0
-s_title	dc.b	"BAD APPLE!!",0
-	dc.b	"   ANKHA   ",0
+s_title	dc.b	"   ANKHA   ",0
 
 s_credits_video
 	dc.b	"CODE: FENARINARSA",13

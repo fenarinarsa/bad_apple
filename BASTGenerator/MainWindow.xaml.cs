@@ -142,8 +142,8 @@ namespace BASTGenerator
         String runtimesoundfile = @"D:\ankha\run\ba_{0:00000}.pcm";
 
         // Final files 
-        String finalvid = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ba.dat";
-        String finalindex = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ba.idx";
+        String finalvid = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ankha.dat";
+        String finalindex = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ankha.idx";
 
         // You can stop here unless you cant to tweak settings in bw_MakeRun.
 
@@ -171,18 +171,13 @@ namespace BASTGenerator
         // Color version
         private void bw_MakeDegas(object sender, DoWorkEventArgs e)
         {
-            // palette LUTs for 1, 2, 3, 4 bitplane modes
-            //int[][] colors = new int[][] { new int[] { 0, 1 },
-            //    new int[] { 0, 2, 3, 1 },
-            //    new int[] { 0, 2, 3, 7, 6, 4, 5, 1 },
-            //    new int[] { 0, 2, 3, 7, 6, 4, 5, 13, 15, 14, 12, 8, 10, 11, 9, 1 } };
 
             for (int pic = first_pic; pic <= last_pic; pic++) {
                 String picfile = String.Format(original_image, pic);
                 Console.WriteLine(pic);
                 Bitmap myBitmap = new Bitmap(picfile);
                 byte[] header = new byte[34];
-                byte[] originalpic = File.ReadAllBytes(picfile); // 320x200 256c BMP only!!
+                byte[] originalpic = File.ReadAllBytes(picfile); // 320xY 256c BMP only!! Y<=200
             
                 int palette = (int)Math.Pow(2, target_nb_bitplanes);
                 for (int i = 3; i < 34; i++) header[i] = 0x0f;
@@ -199,10 +194,12 @@ namespace BASTGenerator
                 byte[] pixels = new byte[(highres?2:8)];
                 int[] planes = new int[4];
 
-                
                 int h = (int)myBitmap.PhysicalDimension.Height;
                 int w = (int)myBitmap.PhysicalDimension.Width;
-                uint[] pixelData = new uint[w * h];
+                uint[] pixelData = new uint[320*200];
+
+                // the original picture height may not be 200 lines, we need to center it
+                int degas_offset = (200 - h)/2;
 
                 using (var fs = new FileStream(degas_source + pic.ToString("D5") + (highres?".pi3":".pi1"), FileMode.Create, FileAccess.Write)) {
                     fs.Write(header, 0, header.Length);
@@ -214,20 +211,14 @@ namespace BASTGenerator
                     for (int y = 0; y < myBitmap.PhysicalDimension.Height; y++) {
                         for (int x = 0; x < myBitmap.PhysicalDimension.Width; x++) {
 
-                            //int brightness = ((myBitmap.GetPixel(x, y).G >> 4) * palette) / 16;
+                            int coloridx = (int)originalpic[122 + x + (y * (int)myBitmap.PhysicalDimension.Width)];
 
-                            //pixelData[x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)((0x111111 * 16 * brightness) / palette)  + 0xff000000;
-
-                            int brightness = (int)originalpic[122 + x + (y * (int)myBitmap.PhysicalDimension.Width)];
-
-                            pixelData[x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)brightness; 
-
-                            //brightness = colors[target_nb_bitplanes-1][brightness];
+                            pixelData[degas_offset + x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)coloridx; 
                         
-                            int p0 = brightness & 1;                        
-                            int p1 = (brightness >> 1) & 1;
-                            int p2 = (brightness >> 2) & 1;
-                            int p3 = (brightness >> 3) & 1;
+                            int p0 = coloridx & 1;                        
+                            int p1 = (coloridx >> 1) & 1;
+                            int p2 = (coloridx >> 2) & 1;
+                            int p3 = (coloridx >> 3) & 1;
                             planes[0] = (planes[0] << 1) | p0;
                             planes[1] = (planes[1] << 1) | p1;
                             planes[2] = (planes[2] << 1) | p2;

@@ -1,0 +1,57 @@
+Ankha
+
+Main
+
+0000 0 EEAA11  (fond orange)
+0001 1 BB6611  (FOND)
+0010 2 DD8811  (intermédiaire 1) FOND
+0011 3 CC8800  (intermédiaire 2) FOND
+0100 4 FFFFEE  (fond yeux blanc)
+0101 5 552200  (cheveux maire)
+0110 6 222255  (bleu profond pupilles + int. coiffe) alt: cheveux maire
+0111 7 112288  (bleu coiffe)
+1000 8 EEDD00  (jaune peau)
+1001 9 BB9900  (lignes peau/yeux) + FOND
+1010 A 997766  (intermédiaire bleu/jaune)
+1011 B 2233CC  (bleu haut coiffe)
+1100 C EEAA66  (peau maire) ff
+1101 D 8877CC  (violet chatte/tits)
+1110 E DD6677  (rose gland)
+1111 F EECCAA  (goutte gland)
+
+X DD4444  (bouche maire/gland)
+
+Internal shots
+
+0000 0 eedd00 yellow 0 (SKIN)
+0001 1 eecc00 yellow 1
+0010 2 cc9900 yellow 3
+0011 3 ddaa00 yellow 2
+0100 4 996600 yellow 5
+0101 5 664400 yellow 6
+0110 6 bb8800 yellow 4
+0111 7 eeeeee white (sperm)
+1000 8 4433cc (blue 0) 281ba2
+1001 9 5555ff (blue 1) 5b59ff 9999ff
+1010 A 332277 (purple) 1c0e76 665588
+1011 B bbaa88 grey (sperm)
+1100 C dd8833 brown 1 (dick)
+1101 D eeaa55 brown 0 (dick)
+1110 E cc4444 pale red 2 (dick)
+1111 F dd5544 pale red (dick)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
