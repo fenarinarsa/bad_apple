@@ -29,6 +29,7 @@ using System.Windows.Media.Imaging;
 using System.Drawing;
 using System.IO;
 using System.ComponentModel;
+using System.Windows.Threading;
 
 namespace BASTGenerator
 {
@@ -120,13 +121,13 @@ namespace BASTGenerator
         //double target_fps = monochrome_fps; // should be >= fps
         bool audio_mux_only = false; // set to true if you only changed audio
         int first_pic = 0;
-        int last_pic = 2719;
+        int last_pic = 3669;
         // set to true if you generate a monochrome highres animation. target bitplanes will be forced to 1
         bool highres = false;
 
         // Original image sequence location
         // don't forget to change it between lowres and highres
-        String original_image = @"D:\ankha\320x200c\Ankha By Ankha LOOP_1{0:0000}.bmp";
+        String original_image = @"D:\ankha\320x200c\ankha_{0:0000}.bmp";
 
         // audio
         int original_samplesize = 2;   // original should always be 16 bits PCM
@@ -138,8 +139,8 @@ namespace BASTGenerator
         String degas_source = @"D:\ankha\ankha{0}bc\ba_";
 
         // Temp files created in step 2
-        String runtimefile = @"D:\ankha\run\ba_{0:00000}.run";
-        String runtimesoundfile = @"D:\ankha\run\ba_{0:00000}.pcm";
+        String runtimefile = @"D:\ankha\run\ankha_{0:00000}.run";
+        String runtimesoundfile = @"D:\ankha\run\ankha_{0:00000}.pcm";
 
         // Final files 
         String finalvid = @"S:\Emulateurs\Atari ST\HDD_C\DEV\NEW\ankha\ankha.dat";
@@ -178,15 +179,23 @@ namespace BASTGenerator
                 Bitmap myBitmap = new Bitmap(picfile);
                 byte[] header = new byte[34];
                 byte[] originalpic = File.ReadAllBytes(picfile); // 320xY 256c BMP only!! Y<=200
+                int bmp_palettestart = 0x36;
             
                 int palette = (int)Math.Pow(2, target_nb_bitplanes);
-                for (int i = 3; i < 34; i++) header[i] = 0x0f;
-                // the palette is actually incorrect but we don't care
+                //for (int i = 3; i < 34; i++) header[i] = 0x0f;
                 for (int i = 0; i < palette; i++) {
-                    int shade = (i * 15) / (palette - 1);
-                    byte ste_shade = (byte)(((shade & 0x1) << 3) | ((shade & 0xe) >> 1));
-                    header[2 + i * 2] = ste_shade;
-                    header[2 + i * 2 + 1] = (byte)(ste_shade * 0x11);
+                    int b = originalpic[bmp_palettestart + i * 4];
+                    int g = originalpic[bmp_palettestart + i * 4 + 1];
+                    int r = originalpic[bmp_palettestart + i * 4 + 2];
+                    // STE conversion
+                    r = ((r & 0x10) >> 1) | ((r & 0xE0) >> 5);
+                    g = ((g & 0x10) << 3) | ((g & 0xE0) >> 1);
+                    b = ((b & 0x10) >> 1) | ((b & 0xE0) >> 5);
+
+                    ; int shade = (i * 15) / (palette - 1);
+                    ; byte ste_shade = (byte)(((shade & 0x1) << 3) | ((shade & 0xe) >> 1));
+                    header[2 + i * 2] = (byte)r;
+                    header[2 + i * 2 + 1] = (byte)(g|b);
                 }
 
                 List<byte> data;
@@ -196,7 +205,7 @@ namespace BASTGenerator
 
                 int h = (int)myBitmap.PhysicalDimension.Height;
                 int w = (int)myBitmap.PhysicalDimension.Width;
-                uint[] pixelData = new uint[320*200];
+                byte[] st_buffer = new byte[320*200];
 
                 // the original picture height may not be 200 lines, we need to center it
                 int degas_offset = (200 - h)/2;
@@ -208,12 +217,12 @@ namespace BASTGenerator
 
                     int pixcount = 0;
                     planes.Initialize();
-                    for (int y = 0; y < myBitmap.PhysicalDimension.Height; y++) {
-                        for (int x = 0; x < myBitmap.PhysicalDimension.Width; x++) {
+                    for (int y = 0; y < h; y++) {
+                        for (int x = 0; x < w; x++) {
 
-                            int coloridx = (int)originalpic[122 + x + (y * (int)myBitmap.PhysicalDimension.Width)];
+                            int coloridx = (int)originalpic[originalpic.Length-(57724-122) + x + (y * (int)myBitmap.PhysicalDimension.Width)];
 
-                            pixelData[degas_offset + x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)coloridx; 
+                            //pixelData[degas_offset + x + (y * (int)myBitmap.PhysicalDimension.Width)] = (uint)coloridx; 
                         
                             int p0 = coloridx & 1;                        
                             int p1 = (coloridx >> 1) & 1;
@@ -248,12 +257,22 @@ namespace BASTGenerator
                             }
                         }
                     }
-                    fs.Write(data.ToArray(), 0, data.Count);
+
+                    int topmargin = (200 - h) * 80;
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int b = 0; b < 160; b++)
+                        {
+                            st_buffer[topmargin + y * 160 + b] = data[y * 160 + b];
+                        }
+                    }
+
+                    fs.Write(st_buffer, 0, 32000);
                     header.Initialize();
-                    fs.Write(header, 0, 32);
+                    fs.Write(header, 0, 32); // fake color cycle data 
                 }
                 
-                bw.ReportProgress(0, pixelData);
+                //bw.ReportProgress(0, pixelData);
             }
         }
 
@@ -273,7 +292,11 @@ namespace BASTGenerator
 
         }
 
-        private void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        private void button_palette(object sender, RoutedEventArgs e)
+        {
+        }
+
+            private void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             btn_pi1.IsEnabled = true;
             btn_runtime.IsEnabled = true;
@@ -335,15 +358,17 @@ namespace BASTGenerator
             modifiedImage.WritePixels(new Int32Rect(0, 0, w, h), pixelData, widthInByte, 0);
 
             image1.Source = modifiedImage;
+
+            image1.Dispatcher.Invoke(DispatcherPriority.Render, EmptyDelegate);
         }
-    
+
+        private static Action EmptyDelegate = delegate () { };
+
         private void bw_MakeRun(object sender, DoWorkEventArgs e)
         {
 
             int trim_start = first_pic;
             int nb_files = last_pic + 1;
-
-
 
             bool opt_addq = true;
             bool opt_move_word = true;
@@ -354,9 +379,7 @@ namespace BASTGenerator
             bool opt_blitter_fill_vertgaps = true;
             bool write_file = true;
             
-            
             byte[] source = new byte[60000];
-          //  byte[] old_source = new byte[60000];
             int[] frame = new int[17000];
             int[] status_original = new int[17000];
             int[] status = new int[17000];
@@ -382,8 +405,6 @@ namespace BASTGenerator
 
             using (System.IO.StreamWriter csv =
                      new System.IO.StreamWriter(@"D:\badapple\log.csv")) {
-
-
 
                 for (int final_pic = (int)(trim_start* frame_step) ; final_pic < (int)(nb_files* frame_step); final_pic++) {
                     

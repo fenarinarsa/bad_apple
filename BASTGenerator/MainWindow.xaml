@@ -11,6 +11,7 @@
         <Button x:Name="btn_runtime" Content="2. Make runtime" HorizontalAlignment="Left" Margin="10,59,0,0" VerticalAlignment="Top" Width="125" Height="27" Click="button1_Click"/>
         <Image x:Name="image" HorizontalAlignment="Left" Height="357" VerticalAlignment="Top" Width="568" Margin="168,27,0,0" Stretch="Fill"/>
         <Image x:Name="image1" HorizontalAlignment="Left" Height="357" Margin="168,27,0,0" VerticalAlignment="Top" Width="568" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+        <Button x:Name="btn_palette" Content="3. Analyze palettes" HorizontalAlignment="Left" Margin="10,92,0,0" VerticalAlignment="Top" Width="125" Height="27" Click="button_palette"/>
 
     </Grid>
 </Window>

@@ -81,7 +81,7 @@ line_length EQU 	160
 horz_shift	 EQU	1
 intro_shift EQU	0
 vbl_per_frame EQU	2	; 25fps
-nb_frames	EQU	2837	; number of frames in file
+nb_frames	EQU	3826	; number of frames in file
 	ENDC
 
 	MACRO	DMASNDST
