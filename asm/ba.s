@@ -285,11 +285,9 @@ hwinits
 	ENDC
 
 	; STE pal
-	lea	palette0,a0
+	lea	palette,a0
 	jsr	convert_palette_ste
-	jsr	convert_palette_ste
-	lea	palette0,a0
-	movem.l	palette0,d0-d7
+	movem.l	palette,d0-d7
 	movem.l	d0-d7,$ffff8240.w
 
 	move.l	#vbl,$70.w
@@ -438,7 +436,7 @@ enableplay	move.w	vbl_count,next_refresh
 
 first_refresh
 	move.w	#-2,b_first_refresh	; not so bool after all
-.wait	cmp.w	#60*5,vbl_count	; wait at least 5 seconds you damn emulator
+.wait	cmp.w	#30,vbl_count	; wait at least 30 frames you damn emulator
 	blt.s	.wait
 	; clear screen
 	clr.w	b_first_refresh
@@ -598,7 +596,7 @@ vbl	addq.w	#1,vbl_count
 	move.b	#199,$fffffa21.w
 	move.b	#8,$fffffa1b.w
 
-vbl_debug	move.w	$ffff8240.w,-(sp)
+vbl_debug	;move.w	$ffff8240.w,-(sp)
 	color_debug $555
 
 	movem.l	d0-a6,-(sp)
@@ -610,24 +608,28 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	bsr	loading_bar
 
 .nointro
-	; check for palette change (WIP)
-	movem.l	palette0,d0-d7
-	cmp.w	#328,rendered_frame
-	bmi.s	.nochange
-	cmp.w	#441,rendered_frame
-	bmi.s	.change
-	bra.s	.nochange
-	;cmp.w	#2302,rendered_frame
-	;bpl.s	.nochange
-.change	movem.l	palette1,d0-d7
-.nochange	movem.l	d0-d7,$ffff8240.w
+
 
 	tst.w	debug_info
 	bne.s	.print_debug
 
 	;end debug info
-.nodebug	movem.l	(sp)+,d0-a6
-	move.w	(sp)+,$ffff8240.w
+
+.nodebug	
+	; check for palette change
+	move.l	pal_ptr,a0
+	move.w	(a0),d0
+	addq	#2,d0
+	cmp.w	rendered_frame,d0
+	bne.s	.nopalchange
+	lea	34(a0),a0		; next palette
+	move.l	a0,pal_ptr
+.nopalchange
+	movem.l	-32(a0),d0-d7	; setup palette for this frame
+	movem.l	d0-d7,$ffff8240.w
+
+	movem.l	(sp)+,d0-a6
+	;move.w	(sp)+,$ffff8240.w
 	rte
 
 .print_debug
@@ -674,6 +676,17 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	lea	s_hex,a6
 	move.l	a6,a0
 	move.w	rendered_frame,d0
+	bsr	itoahex
+	move.l	a6,a0
+	addq.l	#4,a0
+	moveq	#3,d6
+	bsr	textprint
+
+	; next palette frame
+	lea	s_hex,a6
+	move.l	pal_ptr,a0
+	move.w	(a0),d0
+	move.l	a6,a0
 	bsr	itoahex
 	move.l	a6,a0
 	addq.l	#4,a0
@@ -1142,11 +1155,7 @@ debug_color
 	dc.w	0
 debug_info	dc.w	0
 
-	; using Gray code to have only 1 bit change between black and white and any consecutive shade
-	;	0    1     2     3    4   5    6    7    8    9    10   11   12   13   14   15
-	; 4 & 1 bitplanes
-palette0	dc.w	$ea1,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
-palette1	dc.w	$ed0,$ec0,$c90,$da0,$960,$640,$b80,$eee,$43c,$55f,$327,$ba8,$d83,$ea5,$c44,$d54
+
 
 idx_play	dc.l	play_index		; ptr to next frame to play
 idx_load	dc.l	vid_index		; ptr to frame size list
@@ -1222,6 +1231,15 @@ SmallTab	dc.b	0,38,0,48,0,0,0,42,43,44,0,46,41,45,47,0
 	dc.b	11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27
 	dc.b	28,29,30,31,32,33,34,35,36,37,38,39,40,41
 	even
+
+	; using Gray code to have only 1 bit change between black and white and any consecutive shade
+	;	0    1     2     3    4   5    6    7    8    9    10   11   12   13   14   15
+	; 4 & 1 bitplanes
+palette	dc.w	$000,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
+
+pal_ptr	dc.l	palettes
+palettes	incbin	"ankha.pal"
+	dc.w	$fff0
 
 	section	bss
 
