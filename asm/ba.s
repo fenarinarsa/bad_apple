@@ -68,7 +68,7 @@ ram_limit	EQU	0	; 0=no limit, other=malloc size
 blitter	EQU	1	; 1=use blitter 0=emulate blitter (not complete, for debug purpose only)
 minimum_load EQU	512*400	; minimum size of a disk read (to optimize FREADs)
 monochrome	EQU	0	; monochrome mode
-loop_play	EQU	0
+loop_play	EQU	1
 
 	IFNE	monochrome
 line_length EQU	80
@@ -358,7 +358,7 @@ next_load
 	tst.w	(a0)		; end of index
 	bne.s	find_load_size
 
-	IFNE loop_play
+	IFEQ loop_play
 	; we're done loading, force play
 	move.l	#wait_for_play_end,-(sp)
 	bra	enableplay
@@ -372,9 +372,11 @@ next_load
 	trap	#1
 	add.l	#10,sp
 	; loop video
+	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
+	move.l	#-1,(a0)
 	move.l	#play_index,idx_loaded
 	move.l	#vid_index,a0
-	move.l	a0,idx_load
+	move.l	a0,idx_load	; a0 is also used below
 	ENDC	
 
 find_load_size
@@ -485,7 +487,10 @@ loading	move.w	#-1,b_loading
 	add.l	#12,sp
 	clr.w	b_loading
 
-	; filling play_index with updated play pointers
+	; filling idx_loaded with updated play pointers
+	; idx_load: 16 bits frame size list, from original ".idx" file
+	; load_ptr: ptr to the data that has just been loaded
+	; idx_loaded: 32 bits ptr list generated from idx_load and load_ptr
 	moveq	#0,d0
 	move.l	idx_loaded,a0
 	move.l	idx_load,a1
@@ -512,10 +517,10 @@ loading	move.w	#-1,b_loading
 
 	IFEQ	loop_play
 wait_for_play_end
-	move.l	idx_loaded,a0
+	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
 	move.l	#-1,(a0)
 .wait	bsr	check_ikbd
-	move.l	idx_play,a0
+	move.l	idx_play,a0	; if -1 we reached the end of the loaded frames
 	tst.l	(a0)
 	bge.s	.wait
 	ENDC
@@ -752,6 +757,13 @@ hbl	move.w	$ffff8240.w,-(sp)
 
 render	move.l	idx_play,a1	; current frame
 	move.l	(a1),d0
+	IFEQ	1 ;loop_play
+	cmp.l	#-1,d0	; if loop is activated, check for the list end
+	bne.s	.noloop0
+	move.l	#play_index,idx_play	; loop play
+	bra.s	render	; check again
+.noloop0	tst.l	d0
+	ENDC
 	ble	enter_buffering	; null ptr = not loaded yet
 
 	add.w	#1,rendered_frame 	; for debug purpose only
@@ -935,12 +947,13 @@ render	move.l	idx_play,a1	; current frame
 	IFNE	loop_play	
 	; clear the idx playlist in case the video loops and inc idx_play+4
 	move.l	idx_play,a0
-	clr.l	(a0)+
-	move.l	a0,d0
-	cmp.l	#play_index+(nb_frames*2),d0
-	bne.s	.noloop
+	move.l	a0,a1
+	addq	#4,a0
+	cmp.l	#-1,(a0)
+	bne	.noloop1
 	move.l	#play_index,a0
-.noloop	move.l	a0,idx_play
+.noloop1	move.l	a0,idx_play
+	clr.l	(a1)
 	ELSE
 	add.l	#4,idx_play
 	ENDC
@@ -1158,7 +1171,7 @@ debug_info	dc.w	0
 
 
 idx_play	dc.l	play_index		; ptr to next frame to play
-idx_load	dc.l	vid_index		; ptr to frame size list
+idx_load	dc.l	vid_index		; ptr to frame size 16bits list
 idx_loaded	dc.l	play_index		; ptr to next frame to load
 load_ptr	dc.l	0	; start at vid_buffer
 play_ptr	dc.l	0	; video frame ptr
