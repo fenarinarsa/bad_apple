@@ -121,7 +121,7 @@ namespace BASTGenerator
         //double target_fps = monochrome_fps; // should be >= fps
         bool audio_mux_only = false; // set to true if you only changed audio
         int first_pic = 0;
-        int last_pic = 3669;
+        int last_pic = 3670;
         // set to true if you generate a monochrome highres animation. target bitplanes will be forced to 1
         bool highres = false;
 
@@ -412,7 +412,7 @@ namespace BASTGenerator
                      new System.IO.StreamWriter(@"D:\ankha\log.csv")) {
                 using (var palfile = new FileStream(palettefile, FileMode.Create, FileAccess.Write)) {
 
-                    for (int final_pic = (int)(trim_start * frame_step); final_pic < (int)(nb_files * frame_step); final_pic++) {
+                    for (int final_pic = (int)(trim_start * frame_step); final_pic <= (int)(nb_files * frame_step); final_pic++) {
 
                         int pic = (int)(final_pic / frame_step);
                         Console.Write(final_pic + " (" + pic + ") ");
@@ -589,7 +589,7 @@ namespace BASTGenerator
                     double framesize = (double)soundfrq / target_fps;
                     double shouldbe = 0;
                     int current = 0;
-                    for (int pic = (int)(trim_start* frame_step); pic < (int)(nb_files* frame_step); pic++) {
+                    for (int pic = (int)(trim_start* frame_step); pic <= (int)(nb_files* frame_step); pic++) {
                         using (var fs = new FileStream(String.Format(runtimesoundfile, pic), FileMode.Create, FileAccess.Write)) {
                             int toread = ste_channels * (pic==trim_start? (int)framesize-100: (int)framesize);
                             toread = (toread / 2) * 2; // always even
@@ -616,7 +616,7 @@ namespace BASTGenerator
                 int length = 0;
                 using (var final = new FileStream(finalvid, FileMode.Create, FileAccess.Write)) {
                     using (var index = new FileStream(finalindex, FileMode.Create, FileAccess.Write)) {
-                        for (int pic = (int)(trim_start*frame_step); pic < (int)(nb_files* frame_step); pic++) {
+                        for (int pic = (int)(trim_start*frame_step); pic <= (int)(nb_files* frame_step); pic++) {
                             Console.WriteLine("Final file frame {0}", pic-trim_start);
                             int totallength = 0;
                             using (var fs = new FileStream(String.Format(runtimesoundfile, pic), FileMode.Open, FileAccess.Read)) {

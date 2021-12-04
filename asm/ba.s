@@ -67,22 +67,15 @@ emu	EQU	0	; 1=emulate HDD access timings by adding NOPs
 ram_limit	EQU	0	; 0=no limit, other=malloc size
 blitter	EQU	1	; 1=use blitter 0=emulate blitter (not complete, for debug purpose only)
 minimum_load EQU	512*400	; minimum size of a disk read (to optimize FREADs)
-monochrome	EQU	0	; monochrome mode
 loop_play	EQU	1
+monochrome EQU 0
 
-	IFNE	monochrome
-line_length EQU	80
-horz_shift	 EQU	4
-intro_shift EQU 	8020
-vbl_per_frame EQU	1	; 71fps
-nb_frames	EQU	15571	; number of frames in file
-	ELSE
 line_length EQU 	160
 horz_shift	 EQU	1
 intro_shift EQU	0
 vbl_per_frame EQU	2	; 25fps
-nb_frames	EQU	3826	; number of frames in file
-	ENDC
+nb_frames	EQU	3828	; number of frames in file
+loop_frame EQU	992
 
 	MACRO	DMASNDST
 	move.l	\1,d0
@@ -134,11 +127,7 @@ nb_frames	EQU	3826	; number of frames in file
 	trap	#14
 	addq.l	#2,sp
 	cmp.w	#2,d0
-	IFNE	monochrome
-	bne	error_needsmono
-	ELSE
 	bge	error_needscolor
-	ENDC
 
 	*** Mshrink
 	movea.l   4(sp),a5
@@ -267,7 +256,6 @@ hwinits
 	move.l	#dummy_rte,$70.w	; temporary vbl
 	move.l	#dummy_rte,$68.w	; temporary hbl
 
-	IFEQ	monochrome
 	move	#$2300,sr
 	stop	#$2300	; wait for vbl
 	bset.b	#1,$ffff820a.w	; 50Hz
@@ -282,7 +270,6 @@ hwinits
 	stop	#$2300	; wait for vbl
 	clr.b	$ffff8260.w	; lowrez
 	move.w	#$2700,sr
-	ENDC
 
 	; STE pal
 	lea	palette,a0
@@ -338,13 +325,11 @@ hwinits
 	moveq	#-1,d6
 	bsr	textprint
 
-	IFEQ	monochrome
 	lea	s_credits_video2,a0
 	move.l	screen_display_ptr,a1
 	add.l	#(line_length*164)+6,a1
 	moveq	#-1,d6
 	bsr	textprint
-	ENDC
 
 *** MAIN LOOP
 * the main loop is where the loading takes place
@@ -364,19 +349,27 @@ next_load
 	bra	enableplay
 	ELSE
 	; end of video, looping
-	; seek to start of file
-	clr.w	-(sp)
-	move.w	file_handle,-(sp)
-	move.l	#0,-(sp)
-	move.w	#66,-(sp)		; fseek
-	trap	#1
-	add.l	#10,sp
+
 	; loop video
 	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
 	move.l	#-1,(a0)
 	move.l	#play_index,idx_loaded
 	move.l	#vid_index,a0
-	move.l	a0,idx_load	; a0 is also used below
+	move.w	#loop_frame-1,d0
+	; add intro's frame sizes to get the loop frame offset in file
+	move.w	#0,a1
+.findloopindex
+	adda.w	(a0)+,a1
+	dbra	d0,.findloopindex
+	move.l	a0,idx_load
+	; seek to start of file
+	clr.w	-(sp)
+	move.w	file_handle,-(sp)
+	move.l	a1,-(sp)		; seek offset
+	move.w	#66,-(sp)		; fseek
+	trap	#1
+	add.l	#10,sp
+	move.l	idx_load,a0
 	ENDC	
 
 find_load_size
@@ -1003,9 +996,6 @@ flush	move.w	d0,-(sp)
 .s1	move.w	(sp)+,d0
 	rts
 
-error_needsmono
-	pea	s_errmonoonly
-	bra.s	error_message
 error_needscolor
 	pea	s_errcoloronly
 	bra.s	error_message
@@ -1223,8 +1213,6 @@ s_credits_video2
 
 s_errcoloronly
 	dc.b	"Works in color mode only T_T",10,13,0
-s_errmonoonly
-	dc.b	"Works in high-res mode only T_T",10,13,0
 s_errmemory
 	dc.b	"Not enough memory available T_T",10,13,10,13,"Please buy some RAM and try again.",10,13,0
 s_errfile
