@@ -750,13 +750,6 @@ hbl	move.w	$ffff8240.w,-(sp)
 
 render	move.l	idx_play,a1	; current frame
 	move.l	(a1),d0
-	IFEQ	1 ;loop_play
-	cmp.l	#-1,d0	; if loop is activated, check for the list end
-	bne.s	.noloop0
-	move.l	#play_index,idx_play	; loop play
-	bra.s	render	; check again
-.noloop0	tst.l	d0
-	ENDC
 	ble	enter_buffering	; null ptr = not loaded yet
 
 	add.w	#1,rendered_frame 	; for debug purpose only
