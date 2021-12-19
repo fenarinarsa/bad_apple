@@ -23,7 +23,7 @@
 *
 * Based on the BAD APPLE!! player released in 2017, modified to work under steroids.
 *
-* Compiled using vasm, don't know about devpac and its old friends.
+* Compiled using vasm, but can also be build using devpac.
 *
 * How does this work?
 *   It reads a data file that contains multiplexed audio and video frames, just like a video.
@@ -77,7 +77,7 @@ vbl_per_frame EQU	2	; 25fps
 nb_frames	EQU	3828	; number of frames in file
 loop_frame EQU	992
 
-	MACRO	DMASNDST
+DMASNDST	MACRO	
 	move.l	\1,d0
 	swap	d0
 	move.b	d0,$ffff8903.w
@@ -88,7 +88,7 @@ loop_frame EQU	992
 	move.b	d1,$ffff8907.w
 	ENDM
 
-	MACRO	DMASNDED
+DMASNDED	MACRO
 	move.l	\1,d0
 	swap	d0
 	move.b	d0,$ffff890F.w
@@ -99,7 +99,7 @@ loop_frame EQU	992
 	move.b	d1,$ffff8913.w
 	ENDM
 
-	MACRO	emu_hdd_lag
+EMU_HDD_LAG	MACRO	
 	IFNE	emu
 	move.l	d6,d5
 .wait_emu	nop
@@ -109,8 +109,14 @@ loop_frame EQU	992
 	ENDC
 	ENDM
 
+START_PLAYING	MACRO
+	move.w	vbl_count,next_refresh
+	clr.w	b_buffering_lock	; enable play if previously disabled
+	move.b	#%11,$ffff8901.w	; restart sound
+	ENDM
 
-	MACRO	color_debug
+
+COLOR_DEBUG	MACRO
 	
 	tst.w	debug_color
 	beq.s	.\@
@@ -157,7 +163,7 @@ loop_frame EQU	992
 	move.w	#$48,-(sp)		; malloc
 	trap	#1
 	addq.l	#6,sp
-	cmp.l	#500*1024,d0	; needs at least 500MB of free RAM
+	cmp.l	#3*minimum_load,d0	; needs at least 3*minimum_load of free RAM
 	blt	buyram		; stop if not enough memory
 	IFNE	ram_limit
 	move.l	#ram_limit,d0	; limit used RAM (debug)
@@ -259,15 +265,6 @@ hwinits
 	move	#$2300,sr
 	stop	#$2300	; wait for vbl
 	bset.b	#1,$ffff820a.w	; 50Hz
-	; sv2k17 60hz beam switch wait
-	;pea	s_waitfor60	; print wait message
-	;move.w	#9,-(sp)
-	;trap	#1
-	;addq	#6,sp
-	;move.w	#8,-(sp)	; press a key
-	;trap	#1
-	;addq	#2,sp
-	stop	#$2300	; wait for vbl
 	clr.b	$ffff8260.w	; lowrez
 	move.w	#$2700,sr
 
@@ -312,24 +309,16 @@ hwinits
 	addq	#2,d0
 	move.w	d0,next_refresh
 
-	; Title and credits
-	lea	s_title,a0
-	move.l	screen_display_ptr,a1
-	add.l	#(line_length*90)+(56/horz_shift)+1+intro_shift,a1
-	moveq	#-1,d6
-	bsr	textprint
-
-	lea	s_credits_video,a0
-	move.l	screen_display_ptr,a1
-	add.l	#(line_length*164)+(4/horz_shift)+intro_shift,a1
-	moveq	#-1,d6
-	bsr	textprint
-
-	lea	s_credits_video2,a0
-	move.l	screen_display_ptr,a1
-	add.l	#(line_length*164)+6,a1
-	moveq	#-1,d6
-	bsr	textprint
+	; clear screen buffers
+	move.l	screen_display_ptr,a0
+	moveq	#0,d0
+	move.w	#7999,d1
+.clr1	move.l	d0,(a0)+
+	dbra.s	d1,.clr1
+	move.l	screen_render_ptr,a0
+	move.w	#7999,d1
+.clr2	move.l	d0,(a0)+
+	dbra.s	d1,.clr2
 
 *** MAIN LOOP
 * the main loop is where the loading takes place
@@ -344,14 +333,12 @@ next_load
 	bne.s	find_load_size
 
 	IFEQ loop_play
-	; we're done loading, force play
-	move.l	#wait_for_play_end,-(sp)
-	bra	enableplay
-	ELSE
-	; end of video, looping
+	; we're done loading, force play until the end of video
+	bra	wait_for_play_end
 
-	; loop video
-	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
+	ELSE
+	; end of file, looping video
+	move.l	idx_loaded,a0	; set -1 at the end of the loaded data ptr list
 	move.l	#-1,(a0)
 	move.l	#play_index,idx_loaded
 	move.l	#vid_index,a0
@@ -380,7 +367,7 @@ find_load_size
 	beq	check_room		; nul => EOF
 	add.l	d5,d6
 	addq	#1,d7
-	cmp.l	#minimum_load,d6	; try not to load less than 512b (HDC DMA lower limit)
+	cmp.l	#minimum_load,d6	; load a minimum of big chunk of data to avoid the most GEMDOS memory copies possible
 	blt.s	.checksize
 
 check_room	
@@ -418,35 +405,10 @@ check_room
 	tst.w	b_buffering_lock
 	beq.s	check_room		; we're not in buffering mode, recheck now
 
+exit_buffering
 	; exit buffering mode
-	move.l	#check_room,-(sp)	; for the upcoming rts
-	tst.w	b_first_refresh	; is it the first refresh ?
-	beq	enableplay
-	bsr	first_refresh
-
-enableplay	move.w	vbl_count,next_refresh
-	clr.w	b_buffering_lock	; enable play if previously disabled
-	move.b	#%11,$ffff8901.w	; restart sound
-	rts			; go to check_room or wait_for_play_end
-
-first_refresh
-	move.w	#-2,b_first_refresh	; not so bool after all
-.wait	cmp.w	#30,vbl_count	; wait at least 30 frames you damn emulator
-	blt.s	.wait
-	; clear screen
-	clr.w	b_first_refresh
-	move.l	screen_display_ptr,a0
-	moveq	#0,d0
-	move.w	#7999,d1
-.clr1	move.l	d0,(a0)+
-	dbra.s	d1,.clr1
-	move.l	screen_render_ptr,a0
-	move.w	#7999,d1
-.clr2	move.l	d0,(a0)+
-	dbra.s	d1,.clr2
-	;bra.s	.enableplay
-	rts
-
+	START_PLAYING
+	bra	check_room
 
 check_ikbd	cmp.b	#$1+$80,$fffffc02.w	; ESC depressed
 	bne	.no_esc
@@ -473,10 +435,10 @@ loading	move.w	#-1,b_loading
 	move.l	d6,-(sp)
 	move.w	file_handle,-(sp)
 	move.w	#$3F,-(sp)		; fread
-	;color_debug $400	; faint red
-	emu_hdd_lag
+	;COLOR_DEBUG $400	; faint red
+	EMU_HDD_LAG
 	trap	#1
-	;color_debug $000	; black
+	;COLOR_DEBUG $000	; black
 	add.l	#12,sp
 	clr.w	b_loading
 
@@ -498,7 +460,7 @@ loading	move.w	#-1,b_loading
 
 	cmp.l	#buf_nothing,a0	; assert (idx_loaded) < buf_nothing
 	ble.s	.okaydebug
-	illegal
+	bra	video_end	; error
 .okaydebug
 
 	; purple
@@ -506,10 +468,21 @@ loading	move.w	#-1,b_loading
 	;moveq	#15,d1
 	;bsr	debug
 
+	tst.w	b_first_load
+	beq	next_load		; not first refresh: loading next frames if possible
+
+	; start video (first refresh) directly after first load
+	; start rendering without waiting for the buffer to be full
+	; we can do that with ANKHA since the intro is very light
+	clr.w	b_first_load
+	START_PLAYING
 	bra	next_load
 
 	IFEQ	loop_play
 wait_for_play_end
+	move.w	vbl_count,next_refresh
+	clr.w	b_buffering_lock	; enable play if previously disabled
+	move.b	#%11,$ffff8901.w	; restart sound if previously disabled
 	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
 	move.l	#-1,(a0)
 .wait	bsr	check_ikbd
@@ -521,7 +494,7 @@ wait_for_play_end
 *** END
 
 video_end	
-	*** Close BA.RUN
+	*** Close video file
 	move.w	file_handle,-(sp)
 	move.w	#$3e,-(sp)
 	addq.l	#4,sp
@@ -595,18 +568,9 @@ vbl	addq.w	#1,vbl_count
 	move.b	#8,$fffffa1b.w
 
 vbl_debug	;move.w	$ffff8240.w,-(sp)
-	color_debug $555
+	COLOR_DEBUG $555
 
 	movem.l	d0-a6,-(sp)
-
-	tst.w	b_first_refresh
-	beq.s	.nointro
-	move.l	screen_display_ptr,a1
-	add.w	#line_length*108+intro_shift,a1
-	bsr	loading_bar
-
-.nointro
-
 
 	tst.w	debug_info
 	bne.s	.print_debug
@@ -701,11 +665,11 @@ timer_a	move.b	#1,$fffffa1f.w
 	bne.s	.debug_ta
 	rte
 
-.debug_ta	color_debug $700
+.debug_ta	COLOR_DEBUG $700
 	REPT 128
 	nop
 	ENDR
-	color_debug $000
+	COLOR_DEBUG $000
 dummy_rte	rte
 
 * RENDER is triggered by HBL
@@ -731,7 +695,7 @@ b_lock_render
 
 hbl	move.w	$ffff8240.w,-(sp)
 	; green
-	color_debug $070
+	COLOR_DEBUG $070
 
 	tst.w	b_lock_render
 	bne	endhbl		; render already in progress (actually should not happen)
@@ -801,7 +765,7 @@ render	move.l	idx_play,a1	; current frame
 	jsr	2(a1)
 
 	; purple
-	color_debug $303
+	COLOR_DEBUG $303
 
 	move.w	(a1)+,d0
 	add.w	d0,a1	; size of software render code
@@ -1006,36 +970,6 @@ error_message
 
 	jmp	end
 
-*** LOADING BAR
-	; a1 destination address on screen
-
-loading_bar
-	moveq	#-1,d6
-	cmp.w	#-2,b_first_refresh
-	beq.s	.display	; loading done
-
-	move.l	vid_buffer,a2
-	move.l	vid_buffer_end,d1
-	sub.l	#minimum_load,d1  ; this is not a perfect progress bar because we don't know exactly the loading size
-	sub.l	a2,d1	; buffer size	
-	divu	#80,d1	; 40 chars *2 to avoid divu overflow when buffer size > 2.6MB
-	and.l	#$ffff,d1
-	lsl.l	#1,d1	; cancel the *2 effect
-
-	moveq	#-1,d6
-	move.w	#39,d2	; print max 40 chars (41st one is discarded)
-.test	addq	#1,d6
-	cmp.l	load_ptr,a2
-	bge.s	.display
-	add.l	d1,a2
-	dbra.s	d2,.test
-.display	lea	pgbar_text(pc),a0
-	bsr.s	textprint
-	rts
-
-pgbar_text	
-	dc.b	'########### ZONE-ARCHIVE.COM ###########',0
-	even
 
 *** STRING FUNCTIONS
 
@@ -1135,7 +1069,7 @@ next_refresh
 b_loading	dc.w	0
 b_buffering_lock
 	dc.w	-1
-b_first_refresh
+b_first_load
 	dc.w	-1
 b_fileerror
 	dc.w	0
@@ -1172,6 +1106,8 @@ size_toload
 vid_buffer	dc.l	0
 vid_buffer_end
 	dc.l	0
+vid_buffer_end_max
+	dc.l	0
 rendered_frame
 	dc.w	0
 swap_buffers
@@ -1190,19 +1126,6 @@ s_hex	dc.b	"         ",0
 s_nothing	dc.b	"     ",0
 s_title	dc.b	"   ANKHA   ",0
 
-s_credits_video
-	dc.b	"CODE: FENARINARSA",13
-	dc.b	"ORIGINAL VIDEO BY ZONE",0
-	;dc.b	"USED WITH AUTHORIZATION",13
-	;dc.b	"",0
-s_credits_video2
-	dc.b	" ",0
-;	dc.b	"      FENARINARSA",13
-;	dc.b	"                  ANIRA",13
-;	dc.b	"                      M. MINOSHIMA",13
-;	dc.b	"        NOMICO",0
-	
-
 
 s_errcoloronly
 	dc.b	"Works in color mode only T_T",10,13,0
@@ -1210,11 +1133,6 @@ s_errmemory
 	dc.b	"Not enough memory available T_T",10,13,10,13,"Please buy some RAM and try again.",10,13,0
 s_errfile
 	dc.b	"File error",10,13,0
-s_waitfor60
-	dc.b	"Superfast 60Hz mode activated \o/",10,13
-	dc.b	10,13
-	dc.b	"Press a key",0
-	even
 
 smallfont	dc.b	0,0,0,0,0,0,0,0
 	incbin	"SMALL"
@@ -1226,12 +1144,10 @@ SmallTab	dc.b	0,38,0,48,0,0,0,42,43,44,0,46,41,45,47,0
 	dc.b	28,29,30,31,32,33,34,35,36,37,38,39,40,41
 	even
 
-	; using Gray code to have only 1 bit change between black and white and any consecutive shade
-	;	0    1     2     3    4   5    6    7    8    9    10   11   12   13   14   15
-	; 4 & 1 bitplanes
+pal_ptr	dc.l	palettes
+
 palette	dc.w	$000,$b61,$D81,$C80,$FFE,$520,$225,$128,$ED0,$B90,$976,$23C,$EA6,$87C,$D67,$ECA
 
-pal_ptr	dc.l	palettes
 palettes	incbin	"ankha.pal"
 	dc.w	$fff0
 
