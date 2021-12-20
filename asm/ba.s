@@ -77,26 +77,17 @@ vbl_per_frame EQU	2	; 25fps
 nb_frames	EQU	3828	; number of frames in file
 loop_frame EQU	992
 
-DMASNDST	MACRO	
-	move.l	\1,d0
-	swap	d0
-	move.b	d0,$ffff8903.w
-	swap	d0
-	move.w	d0,d1
-	lsr.w	#8,d0
-	move.b	d0,$ffff8905.w
-	move.b	d1,$ffff8907.w
-	ENDM
-
-DMASNDED	MACRO
-	move.l	\1,d0
-	swap	d0
-	move.b	d0,$ffff890F.w
-	swap	d0
-	move.w	d0,d1
-	lsr.w	#8,d0
-	move.b	d0,$ffff8911.w
-	move.b	d1,$ffff8913.w
+	; uses a6
+AUDIO_DMA_SET	MACRO
+	lea	$ffff8900.w,a6
+	swap	\2
+	move.b	\2,$0F(a6)
+	swap	\2
+	movep.w	\2,$11(a6)
+	swap	\1
+	move.b	\1,$03(a6)
+	swap	\1
+	movep.w	\1,$05(a6)
 	ENDM
 
 EMU_HDD_LAG	MACRO	
@@ -294,10 +285,9 @@ hwinits
 
 	move.b     #%10,$FFFF8921.w	; 25kHz stereo
 	;move.b     #%10000001,$FFFF8921.w	; 12kHz mono
-	lea	buf_nothing,a0
-	DMASNDST	a0
-	lea 	buf_nothing_end,a0
-	DMASNDED	a0
+	move.l	#buf_nothing,d0
+	move.l 	#buf_nothing_end,d1
+	AUDIO_DMA_SET d0,d1
 	move.b	#%11,$ffff8901.w	; start playing sound
 
 	; enable Timer A
@@ -567,7 +557,7 @@ vbl	addq.w	#1,vbl_count
 	move.b	#199,$fffffa21.w
 	move.b	#8,$fffffa1b.w
 
-vbl_debug	;move.w	$ffff8240.w,-(sp)
+vbl_debug	move.w	$ffff8240.w,-(sp)
 	COLOR_DEBUG $555
 
 	movem.l	d0-a6,-(sp)
@@ -591,7 +581,12 @@ vbl_debug	;move.w	$ffff8240.w,-(sp)
 	movem.l	d0-d7,$ffff8240.w
 
 	movem.l	(sp)+,d0-a6
-	;move.w	(sp)+,$ffff8240.w
+	tst.w	debug_color
+	bne.s	.endvblcolor
+	addq	#2,sp
+	rte
+.endvblcolor
+	move.w	(sp)+,$ffff8240.w
 	rte
 
 .print_debug
@@ -661,8 +656,8 @@ vbl_debug	;move.w	$ffff8240.w,-(sp)
 * Timer A
 * used only for debugging to check when the audio DMA buffer loops
 timer_a	move.b	#1,$fffffa1f.w
-	tst.w	debug_color
-	bne.s	.debug_ta
+	;tst.w	debug_color
+	;bne.s	.debug_ta
 	rte
 
 .debug_ta	COLOR_DEBUG $700
@@ -713,7 +708,7 @@ hbl	move.w	$ffff8240.w,-(sp)
 	move.w	d0,next_refresh
 
 render	move.l	idx_play,a1	; current frame
-	move.l	(a1),d0
+	move.l	(a1),a1		; pcm start
 	ble	enter_buffering	; null ptr = not loaded yet
 
 	add.w	#1,rendered_frame 	; for debug purpose only
@@ -723,23 +718,20 @@ render	move.l	idx_play,a1	; current frame
 	; note that it would be ideally in 1 (mono) or 2 (color) vbls and then be in sync with the video
 	; there is many ways to achieve that but in this version it relies on the first audio frame
 	; to be smaller so the DMA loop happens just before this 'render' function is called
-	move.l	d0,a1
 	move.l	a1,play_ptr
 	add.w	#1,play_frm
-	move.l	d0,a0
-	move.l	(a0)+,d0		; pcm length
-	move.l	a0,a1
-	add.l	d0,a1		; pcm end
-	DMASNDED	a1
-	DMASNDST	a0
+	move.l	(a1)+,d2		; pcm length
+	move.l	a1,d0
+	add.l	d2,a1		; pcm end
+	move.l	a1,d1
+	AUDIO_DMA_SET d0,d1
 
-	;temporary hack to avoid emulation audio cracks
-	moveq	#0,d0
-	lea	$ffff8907.w,a0
-	movep.l	(a0),d0
+	; hack to avoid emulation audio cracks
+	movep.l	$07(a6),d0
 	and.l	#$00ffffff,d0
 	move.l	d0,aplay_ptr
 	add.w	#1,aplay_frm
+
 
 	; check if unchanged frame
 	; apply to frame N-2 so we need to save this
