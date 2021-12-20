@@ -572,7 +572,7 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	move.l	pal_ptr,a0
 	move.w	(a0),d0
 	addq	#2,d0
-	cmp.w	rendered_frame,d0
+	cmp.w	play_frm,d0
 	bne.s	.nopalchange
 	lea	34(a0),a0		; next palette
 	move.l	a0,pal_ptr
@@ -632,7 +632,7 @@ vbl_debug	move.w	$ffff8240.w,-(sp)
 	; last rendered frame
 	lea	s_hex,a6
 	move.l	a6,a0
-	move.w	rendered_frame,d0
+	move.w	play_frm,d0
 	bsr	itoahex
 	move.l	a6,a0
 	addq.l	#4,a0
@@ -893,7 +893,13 @@ render	move.l	idx_play,a1	; current frame
 	addq	#4,a0
 	cmp.l	#-1,(a0)
 	bne	.noloop1
+
+	; reset all ptr/counters
 	move.l	#play_index,a0
+	move.w	#loop_frame,play_frm
+	move.w	#loop_frame,aplay_frm
+	move.l	#palettes,pal_ptr
+
 .noloop1	move.l	a0,idx_play
 	clr.l	(a1)
 	ELSE
