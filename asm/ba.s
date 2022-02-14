@@ -688,7 +688,7 @@ tb_render	tst.w	b_lock_render
 b_lock_render
 	dc.w	0
 
-hbl	move.w	$ffff8240.w,-(sp)
+hbl	;move.w	$ffff8240.w,-(sp)
 	; green
 	COLOR_DEBUG $070
 
@@ -898,7 +898,7 @@ render	move.l	idx_play,a1	; current frame
 	move.l	#play_index,a0
 	move.w	#loop_frame,play_frm
 	move.w	#loop_frame,aplay_frm
-	move.l	#palettes,pal_ptr
+	move.l	#palettes+(34*5),pal_ptr
 
 .noloop1	move.l	a0,idx_play
 	clr.l	(a1)
@@ -915,7 +915,7 @@ endrender
 	movem.l	(sp)+,d0-a6
 	
 	clr.w	b_lock_render
-endhbl	move.w	(sp)+,$ffff8240.w
+endhbl	;move.w	(sp)+,$ffff8240.w
 	and.w	#$f0ff,(sp)
 	or.w	#$0300,(sp)	; disable HBL after rte (should not work on 68030+)
 	rte
