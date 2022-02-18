@@ -176,6 +176,11 @@ namespace BASTGenerator
 
             for (int pic = first_pic; pic <= last_pic; pic++) {
                 String picfile = String.Format(original_image, pic);
+                String degas_dest = degas_source + pic.ToString("D5") + (highres ? ".pi3" : ".pi1");
+
+                if (File.Exists(degas_dest) && File.GetLastWriteTimeUtc(picfile) < File.GetLastWriteTimeUtc(degas_dest))
+                    continue;
+
                 Console.WriteLine(pic);
                 Bitmap myBitmap = new Bitmap(picfile);
                 byte[] header = new byte[34];
@@ -211,7 +216,7 @@ namespace BASTGenerator
                 // the original picture height may not be 200 lines, we need to center it
                 int degas_offset = (200 - h)/2;
 
-                using (var fs = new FileStream(degas_source + pic.ToString("D5") + (highres?".pi3":".pi1"), FileMode.Create, FileAccess.Write)) {
+                using (var fs = new FileStream(degas_dest, FileMode.Create, FileAccess.Write)) {
                     fs.Write(header, 0, header.Length);
 
                     data = new List<byte>();
