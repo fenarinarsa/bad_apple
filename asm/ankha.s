@@ -93,9 +93,14 @@ AUDIO_DMA_SET	MACRO
 EMU_HDD_LAG	MACRO	
 	IFNE	emu
 	move.l	d6,d5
-.wait_emu	nop
-	nop
-	nop
+.wait_emu	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
+	move.l	buf_nothing,buf_nothing
 	dbra.s	d5,.wait_emu
 	ENDC
 	ENDM
@@ -707,8 +712,9 @@ hbl	;move.w	$ffff8240.w,-(sp)
 	sub.w	#vbl_per_frame,vbl_count ; don't split this instruction to avoid race condition with vbl
 
 render	move.l	idx_play,a1	; current frame
-	move.l	(a1),a1		; pcm start
+	move.l	(a1),d0		; pcm start
 	ble	enter_buffering	; null ptr = not loaded yet
+	move.l	d0,a1
 
 	add.w	#1,rendered_frame 	; for debug purpose only
 
