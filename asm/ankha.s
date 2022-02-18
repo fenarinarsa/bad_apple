@@ -101,7 +101,7 @@ EMU_HDD_LAG	MACRO
 	ENDM
 
 START_PLAYING	MACRO
-	move.w	vbl_count,next_refresh
+	move.w	#vbl_per_frame,vbl_count
 	clr.w	b_buffering_lock	; enable play if previously disabled
 	move.b	#%11,$ffff8901.w	; restart sound
 	ENDM
@@ -295,10 +295,6 @@ hwinits
 	move.b	#1,$fffffa1f.w
 	move.b	#8,$fffffa19.w
 
-	move.w	vbl_count,d0
-	addq	#2,d0
-	move.w	d0,next_refresh
-
 	; clear screen buffers
 	move.l	screen_display_ptr,a0
 	moveq	#0,d0
@@ -309,6 +305,9 @@ hwinits
 	move.w	#7999,d1
 .clr2	move.l	d0,(a0)+
 	dbra.s	d1,.clr2
+
+	; force playing immediately
+	move.w	#vbl_per_frame,vbl_count
 
 *** MAIN LOOP
 * the main loop is where the loading takes place
@@ -470,7 +469,8 @@ loading	move.w	#-1,b_loading
 
 	IFEQ	loop_play
 wait_for_play_end
-	move.w	vbl_count,next_refresh
+	;move.w	vbl_count,next_refresh
+	move.w	#vbl_per_frame,vbl_count
 	clr.w	b_buffering_lock	; enable play if previously disabled
 	move.b	#%11,$ffff8901.w	; restart sound if previously disabled
 	move.l	idx_loaded,a0	; set -1 at the end the loaded data ptr list
@@ -702,10 +702,9 @@ hbl	;move.w	$ffff8240.w,-(sp)
 	bne	norender
 
 	move.w	vbl_count,d0
-	cmp.w	next_refresh,d0
+	cmp.w	#vbl_per_frame,d0
 	blt	norender
-	addq.w	#vbl_per_frame,d0
-	move.w	d0,next_refresh
+	sub.w	#vbl_per_frame,vbl_count ; don't split this instruction to avoid race condition with vbl
 
 render	move.l	idx_play,a1	; current frame
 	move.l	(a1),a1		; pcm start
@@ -920,7 +919,8 @@ endhbl	;move.w	(sp)+,$ffff8240.w
 	or.w	#$0300,(sp)	; disable HBL after rte (should not work on 68030+)
 	rte
 
-norender	bsr	set_screen
+norender	
+	bsr	set_screen
 	bra.s	endrender
 
 set_screen	tst.w	debug_info
