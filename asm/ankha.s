@@ -1,6 +1,6 @@
 
 * ANKHA Atari STE version (color)
-* Copyright (C) 2017-2021 fenarinarsa (Cyril Lambin)
+* Copyright (C) 2017-2024 fenarinarsa (Cyril Lambin)
 *
 * This program is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@
 * Don't hesitate to donate a Falcon030 or a TT so I can do a compatible version :D
 *
 * Any complain of badly written "it looks like 30 years old" code can be sent to
-* Twitter @fenarinarsa
+* Bluesky @fenarinarsa.com
 * Mastodon @fenarinarsa@shelter.moe
 * Web fenarinarsa.com
 
@@ -74,7 +74,7 @@ line_length EQU 	160
 horz_shift	 EQU	1
 intro_shift EQU	0
 vbl_per_frame EQU	2	; 25fps
-nb_frames	EQU	3828	; number of frames in file
+nb_frames	EQU	3831	; number of frames in file
 loop_frame EQU	992
 
 	; uses a6
@@ -903,7 +903,7 @@ render	move.l	idx_play,a1	; current frame
 	move.l	#play_index,a0
 	move.w	#loop_frame,play_frm
 	move.w	#loop_frame,aplay_frm
-	move.l	#palettes+(34*5),pal_ptr
+	move.l	#palettes+(34*9),pal_ptr
 
 .noloop1	move.l	a0,idx_play
 	clr.l	(a1)
