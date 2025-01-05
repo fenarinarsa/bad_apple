@@ -9,3 +9,7 @@ bin
 *.lref
 obj
 Debug
+asm/ankha.pal
+BASTGenerator/.vs/BASTGenerator/FileContentIndex/4e0fc4ff-116e-40a4-914e-e2e1ea467f06.vsidx
+BASTGenerator/.vs/BASTGenerator/v17/DocumentLayout.json
+asm/ankha.pal

@@ -1,11 +1,11 @@
 ﻿// Bad Apple Atari ST Generator
-// by fenarinarsa (Cyril Lambin), 2017
+// by fenarinarsa (Cyril Lambin), 2017-2024
 //
 // Takes a png sequence and converts it to a pi1/pi3 degas sequence
 // Then converts the degas sequence into a delta-packed file for the badapple.tos "player"
 // Compiled with Visual Studio Community 2015
 //
-// Copyright(C) 2017 Cyril Lambin
+// Copyright(C) 2017-2024 Cyril Lambin
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -103,6 +103,8 @@ namespace BASTGenerator
         // ends with 0x0000
         //
 
+        // ASSETS AVAILABLE HERE: https://fenarinarsa.com/demos/ANKHA_BY_ANKHA_Source_20250105.zip
+
         BackgroundWorker bw;
 
         // those are real STE video frequencies (PAL STE) see http://www.atari-forum.com/viewtopic.php?f=16&t=32842&p=335132
@@ -121,7 +123,7 @@ namespace BASTGenerator
         //double target_fps = monochrome_fps; // should be >= fps
         bool audio_mux_only = false; // set to true if you only changed audio
         int first_pic = 0;
-        int last_pic = 3670;
+        int last_pic = 3673;
         // set to true if you generate a monochrome highres animation. target bitplanes will be forced to 1
         bool highres = false;
 
